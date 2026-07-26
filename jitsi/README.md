@@ -1,15 +1,29 @@
-# Jitsi Meet (Docker) — Stable Deployment Guide
+# Jitsi Meet on Docker
 
-This document provides a concise, step-by-step guide to install and run a stable, production-ready instance of Jitsi Meet using the official Docker setup.
+![](resources/jitsi-docker.png)
 
-## Prerequisites
+[Jitsi](https://jitsi.org/) is a set of Open Source projects that allows you to easily build and deploy secure videoconferencing solutions.
 
-- Operating system: a modern Linux distribution (Ubuntu 20.04 / 22.04 recommended)
-- Docker (check with `docker --version`)
-- Docker Compose (check with `docker compose version`)
-- A public IP and a DNS name (FQDN) for production deployments (e.g. `meet.example.com`)
+[Jitsi Meet](https://jitsi.org/jitsi-meet/) is a fully encrypted, 100% Open Source video conferencing solution that you can use all day, every day, for free — with no account needed.
 
-## Quick start — clone repository
+This repository contains the necessary tools to run a Jitsi Meet stack on [Docker](https://www.docker.com) using [Docker Compose](https://docs.docker.com/compose/).
+
+All our images are published on the [GitHub Container Registry (GHCR)](https://github.com/orgs/jitsi/packages).
+
+## Tags
+
+These are the currently published tags for all our images:
+
+Tag | Description
+-- | --
+`stable` | Points to the latest stable release
+`stable-NNNN-X` | A stable release
+`unstable` | Points to the latest unstable release
+`unstable-YYYY-MM-DD` | Daily unstable release
+
+## Installation
+
+### Quick start — clone repository
 
 ```bash
 git clone https://github.com/jitsi/docker-jitsi-meet.git
@@ -17,7 +31,7 @@ cd docker-jitsi-meet
 cp env.example .env
 ```
 
-## Generate secure internal passwords
+### Generate secure internal passwords
 
 Run the included helper to create randomized passwords used by the services:
 
@@ -31,7 +45,7 @@ If you previously started Jitsi and want to reset configuration, remove the conf
 rm -rf ~/.jitsi-meet-cfg
 ```
 
-## Configure `.env`
+### Configure `.env`
 
 Open `.env` and update the values appropriate for your environment.
 
@@ -66,7 +80,7 @@ Notes:
 - If using a LAN IP or self-signed certs, open the WebSocket URL in your browser and accept the certificate before using Jitsi (`https://<IP>:8443/xmpp-websocket`).
 - Make sure `JVB_ADVERTISED_IPS` is set to a reachable IP for media (important for ICE candidates).
 
-## Firewall / Ports
+### Firewall / Ports
 
 Open these ports on your host/cloud firewall:
 
@@ -83,7 +97,7 @@ sudo ufw allow 10000/udp
 sudo ufw reload
 ```
 
-## Launching the stack
+### Launching the stack
 
 Start containers in detached mode:
 
@@ -98,6 +112,10 @@ docker compose ps
 ```
 
 Expected services: `web`, `prosody`, `jicofo`, `jvb` (and optional `jibri` if enabled).
+
+### Kubernetes
+
+If you plan to install the jitsi-meet stack on a Kubernetes cluster you can find tools and tutorials in the project [Jitsi on Kubernetes](https://github.com/jitsi-contrib/jitsi-kubernetes).
 
 ## Troubleshooting
 
@@ -130,6 +148,36 @@ docker compose up -d --force-recreate
 docker compose logs -f web
 ```
 
+## Joining a room without camera and microphone
+
+If you want to join a meeting room without being prompted for camera and microphone access, add the following variables to your `.env` file:
+
+```ini
+# Start with audio already muted (no microphone permission prompt)
+START_WITH_AUDIO_MUTED=true
+
+# Start with video already muted (no camera permission prompt)
+START_WITH_VIDEO_MUTED=true
+
+# Start silent (do not request microphone access at all)
+START_SILENT=true
+
+# Disable the prejoin screen (skips camera/mic selection page)
+ENABLE_PREJOIN_PAGE=false
+```
+
+After updating `.env`, recreate the stack:
+```bash
+docker compose down
+docker compose up -d
+```
+
+You can also enable these options temporarily by appending query parameters to the room URL:
+```
+https://meet.example.com/MyRoom#config.startWithAudioMuted=true&config.startWithVideoMuted=true
+```
+
 ## References
 
 - Official repo: https://github.com/jitsi/docker-jitsi-meet
+
