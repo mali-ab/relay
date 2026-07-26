@@ -3,11 +3,7 @@ import { useNavigate } from "react-router-dom";
 import type { AxiosError } from "axios";
 import MeetingForm from "../components/meetings/MeetingForm";
 import api from "../lib/axios";
-import type { 
-  CreateMeetingPayload, 
-  MeetingResponse, 
-  ApiErrorResponse 
-} from "../types/meeting";
+import type { CreateMeetingPayload, MeetingResponse, ApiErrorResponse } from "../types/meeting";
 
 export default function CreateMeeting() {
   const navigate = useNavigate();
@@ -19,8 +15,8 @@ export default function CreateMeeting() {
     setError(null);
 
     try {
-      const response = await api.post<MeetingResponse>("/meetings", formData);
-      const roomName = response.data.room.room_name;
+      const response = await api.post<MeetingResponse>("/meetings/create", formData);
+      const roomName = response.data.meeting.room_name;
       navigate(`/meeting/${encodeURIComponent(roomName)}`);
     } catch (err) {
       const axiosError = err as AxiosError<ApiErrorResponse>;

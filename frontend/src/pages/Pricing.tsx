@@ -1,35 +1,72 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CheckIcon, SparklesIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../contexts/AuthContext";
 import type { SubscriptionTier } from "../contexts/AuthContext";
+import api from "../lib/axios";
+import { getSubscription } from "../lib/subscription";
 
-const freeFeatures = [
-  "Максимум 30 минут на встречу",
-  "До 5 участников",
-  "Базовое управление встречей",
-  "Демонстрация экрана",
-  "Чат поддержка",
-];
-
-const proFeatures = [
-  "Безлимитная длительность встреч",
-  "До 30 участников",
-  "Расширенное управление встречей",
-  "Демонстрация экрана и запись",
-  "Приоритетная поддержка в чате",
-  "Настраиваемые фоны",
-  "Аналитика встреч",
-];
+interface Plan {
+  id: number;
+  code: string;
+  name: string;
+  max_participants: number;
+  meeting_duration: number;
+  price: number;
+}
 
 interface PlanCardProps {
   title: string;
-  price: string;
+  price: number;
   description: string;
   features: string[];
   tier: SubscriptionTier;
   isPro?: boolean;
   currentPlan?: SubscriptionTier;
+  isUpgrading: boolean;
   onUpgrade: (tier: SubscriptionTier) => void;
+}
+
+function getPlanFeatures(plan: Plan): string[] {
+  const features: string[] = [];
+
+  // Duration feature
+  if (plan.meeting_duration === 0) {
+    features.push("Безлимитная длительность встреч");
+  } else {
+    features.push(`Максимум ${plan.meeting_duration} минут на встречу`);
+  }
+
+  // Participants feature
+  features.push(`До ${plan.max_participants} участников`);
+
+  // Plan-specific features
+  if (plan.code === "free" || plan.code === "FREE") {
+    features.push(
+      "Базовое управление встречей",
+      "Демонстрация экрана",
+      "Чат поддержка"
+    );
+  }
+
+  if (plan.code === "pro" || plan.code === "PRO") {
+    features.push(
+      "Расширенное управление встречей",
+      "Демонстрация экрана и запись",
+      "Приоритетная поддержка в чате",
+      "Настраиваемые фоны",
+      "Аналитика встреч"
+    );
+  }
+
+  return features;
+}
+
+function getPlanDescription(code: string): string {
+  if (code === "free" || code === "FREE") {
+    return "Идеально для начала";
+  }
+  return "Для преподавателей и продвинутых пользователей";
 }
 
 function PlanCard({
@@ -40,9 +77,11 @@ function PlanCard({
   tier,
   isPro = false,
   currentPlan,
+  isUpgrading,
   onUpgrade,
 }: PlanCardProps) {
   const isCurrentPlan = currentPlan === tier;
+  const isFree = price === 0;
 
   return (
     <div
@@ -66,9 +105,9 @@ function PlanCard({
 
       <div className="mb-6">
         <span className="text-5xl font-extrabold text-slate-900">
-          {price === "Free" ? "0 TMT" : price}
+          {isFree ? "0 TMT" : `${price} TMT`}
         </span>
-        {price !== "Free" && (
+        {!isFree && (
           <span className="text-slate-400 text-sm font-medium ml-2">/месяц</span>
         )}
       </div>
@@ -95,13 +134,21 @@ function PlanCard({
       ) : (
         <button
           onClick={() => onUpgrade(tier)}
-          className={`w-full py-3.5 rounded-2xl font-semibold transition-all duration-200 active:scale-[0.98] ${
+          disabled={isUpgrading}
+          className={`w-full py-3.5 rounded-2xl font-semibold transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 ${
             isPro
               ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40"
               : "bg-slate-900 text-white hover:bg-slate-800"
           }`}
         >
-          {tier === "free" ? "Понизить" : "Перейти на Pro"}
+          {isUpgrading ? (
+            <span className="inline-flex items-center gap-2">
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Обновление...
+            </span>
+          ) : (
+            tier === "free" ? "Понизить" : "Перейти на Pro"
+          )}
         </button>
       )}
     </div>
@@ -111,12 +158,66 @@ function PlanCard({
 export default function Pricing() {
   const { user, updateSubscription } = useAuth();
   const navigate = useNavigate();
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api
+      .get<{ plans: Plan[] }>("/plans")
+      .then((response) => {
+        setPlans(response.data.plans);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        setError("Не удалось загрузить тарифы. Попробуйте позже.");
+        setIsLoading(false);
+      });
+  }, []);
 
   const currentPlan: SubscriptionTier = user?.subscription || "free";
 
-  const handleUpgrade = (tier: SubscriptionTier) => {
-    updateSubscription(tier);
+  const handleUpgrade = async (tier: SubscriptionTier) => {
+    const planCode = tier === "pro" ? "pro" : "free";
+    setIsUpgrading(true);
+    setError(null);
+    try {
+      await getSubscription(planCode);
+      updateSubscription(tier);
+    } catch (err) {
+      setError("Не удалось обновить подписку. Попробуйте позже.");
+    } finally {
+      setIsUpgrading(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-slate-500 text-sm">Загрузка тарифов...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center max-w-md px-6">
+          <p className="text-red-500 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-2.5 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 transition-colors"
+          >
+            Попробовать снова
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -134,26 +235,26 @@ export default function Pricing() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto items-start">
-          <PlanCard
-            title="Бесплатный"
-            price="Free"
-            description="Идеально для начала"
-            features={freeFeatures}
-            tier="free"
-            currentPlan={currentPlan}
-            onUpgrade={handleUpgrade}
-          />
+          {plans.map((plan) => {
+            const code = plan.code.toLowerCase();
+            const tier = code === "pro" ? "pro" : "free" as SubscriptionTier;
+            const isPro = code === "pro";
 
-          <PlanCard
-            title="Pro"
-            price="200 TMT"
-            description="Для преподавателей и продвинутых пользователей"
-            features={proFeatures}
-            tier="pro"
-            isPro={true}
-            currentPlan={currentPlan}
-            onUpgrade={handleUpgrade}
-          />
+            return (
+              <PlanCard
+                key={plan.id}
+                title={plan.name}
+                price={plan.price}
+                description={getPlanDescription(plan.code)}
+                features={getPlanFeatures(plan)}
+                tier={tier}
+                isPro={isPro}
+                currentPlan={currentPlan}
+                isUpgrading={isUpgrading}
+                onUpgrade={handleUpgrade}
+              />
+            );
+          })}
         </div>
 
         <div className="mt-12 text-center">

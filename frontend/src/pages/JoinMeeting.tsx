@@ -65,12 +65,20 @@ export default function JoinMeeting() {
       navigate(`/meeting/${encodeURIComponent(roomName)}`);
     } catch (err) {
       const axiosError = err as AxiosError<ApiErrorResponse>;
+      const status = axiosError.response?.status;
       const serverMessage =
+        axiosError.response?.data?.error ||
         axiosError.response?.data?.message ||
-        "Не удалось подключиться к серверу. Подключаемся локально...";
+        "Не удалось подключиться к встрече.";
 
-      // Log error internally if needed, then fallback to direct room navigation
       setError(serverMessage);
+
+      // If meeting is not found (404) or has ended (410), don't navigate to the room
+      if (status === 404 || status === 410) {
+        return;
+      }
+
+      // For other errors, fallback to direct room navigation
       navigate(`/meeting/${encodeURIComponent(cleanId)}`);
     } finally {
       setLoading(false);

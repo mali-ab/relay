@@ -13,19 +13,8 @@ import {
 import AuthLayout from "../layouts/AuthLayout";
 import api from "../lib/axios";
 import type { ApiErrorResponse } from "../types/meeting";
-import { useAuth } from "../contexts/AuthContext";
-
-interface RawUser {
-  id: string | number;
-  name: string;
-  email: string;
-}
-
-interface LoginResponse {
-  token: string;
-  user?: RawUser;
-  message?: string;
-}
+import type { LoginResponse } from "../types/auth";
+import { useAuth, type SubscriptionTier } from "../contexts/AuthContext";
 
 export default function Login() {
   const { login } = useAuth();

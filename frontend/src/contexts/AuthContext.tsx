@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import api from "../lib/axios";
+import type { MeResponse, SubscriptionInfo, UserInfo } from "../types/auth";
 
 export type SubscriptionTier = "free" | "pro";
 
@@ -15,6 +16,7 @@ export type AuthUser = {
   name: string;
   email: string;
   subscription: SubscriptionTier;
+  subs?: SubscriptionInfo;
 };
 
 type AuthContextValue = {
@@ -60,15 +62,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(storedToken);
 
     api
-      .get("/me")
+      .get<MeResponse>("/me")
       .then((response) => {
         const data = response.data;
-        const raw = data.user || data;
+        const planCode = (data.subs.plan_code ?? "").toLowerCase();
+        const tier: SubscriptionTier = planCode === "pro" ? "pro" : "free";
         const freshUser: AuthUser = {
-          id: String(raw.id ?? raw.ID ?? ""),
-          name: raw.name ?? raw.Name ?? "",
-          email: raw.email ?? raw.Email ?? "",
-          subscription: (raw.subscription ?? raw.Subscription ?? "free") as SubscriptionTier,
+          id: String(data.user.id ?? ""),
+          name: data.user.name ?? "",
+          email: data.user.email ?? "",
+          subscription: tier,
+          subs: data.subs,
         };
         setUser(freshUser);
         window.localStorage.setItem("user", JSON.stringify(freshUser));

@@ -14,19 +14,8 @@ import {
 import AuthLayout from "../layouts/AuthLayout";
 import api from "../lib/axios";
 import type { ApiErrorResponse } from "../types/meeting";
+import type { RegisterResponse } from "../types/auth";
 import { useAuth } from "../contexts/AuthContext";
-
-interface RawUser {
-  id: string | number;
-  name: string;
-  email: string;
-}
-
-interface RegisterResponse {
-  token?: string;
-  message?: string;
-  user?: RawUser;
-}
 
 export default function Register() {
   const { login } = useAuth();

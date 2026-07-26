@@ -82,14 +82,18 @@ export default function MeetingRoom() {
 
         if (response.data?.room?.join_url)
           setJoinUrl(response.data.room.join_url);
-        if (response.data?.room?.room_name)
-          setRoomName(response.data.room.room_name);
+        if (response.data?.meeting?.room_name)
+          setRoomName(response.data.meeting.room_name);
       } catch (err: unknown) {
         if (!isActive) return;
 
         if (axios.isAxiosError(err)) {
           if (err.response?.status === 404) {
             navigate("/404", { replace: true });
+            return;
+          }
+          if (err.response?.status === 410) {
+            setError("Эта встреча уже завершена.");
             return;
           }
         }
@@ -113,6 +117,25 @@ export default function MeetingRoom() {
     setJitsiJoined(true);
     joinConference({ roomName, displayName, url: joinUrl });
   }, [joinUrl, jitsiJoined, roomName, displayName, joinConference]);
+
+  // Poll meeting status periodically. If the meeting has ended (410), leave immediately.
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        await api.get(`/meetings/${encodeURIComponent(roomName)}/status`);
+      } catch (err) {
+        if (axios.isAxiosError(err) && err.response?.status === 410) {
+          await api.post(`/meetings/end/${encodeURIComponent(roomName)}`);
+          setError("Встреча была завершена организатором.");
+          leaveConference();
+          setTimeout(() => navigate("/", { replace: true }), 3000);
+        }
+      }
+    };
+    
+    const interval = window.setInterval(checkStatus, 5000);
+    return () => window.clearInterval(interval);
+  }, [jitsiJoined, roomName, leaveConference, navigate]);
 
   useEffect(() => {
     if (kickedOut) {
@@ -212,7 +235,12 @@ export default function MeetingRoom() {
         toggleSidePanel={(panel) =>
           setActiveSidePanel((prev) => (prev === panel ? null : panel))
         }
-        onLeave={() => {
+        onLeave={async () => {
+          try {
+            await api.post(`/meetings/end/${encodeURIComponent(roomName)}`);
+          } catch (err) {
+            console.error("Failed to end meeting:", err);
+          }
           leaveConference();
           navigate("/");
         }}

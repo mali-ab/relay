@@ -29,13 +29,15 @@ export interface ActivityItem {
 }
 
 interface RawMeetingResponse {
-  meetings: {
-    id?: number | string;
-    title?: string;
-    room_name?: string;
-    created_at?: string;
-    Type?: ActivityType;
-  };
+  id?: number | string;
+  title?: string;
+  room_name?: string;
+  created_at?: string;
+  Type?: ActivityType;
+}
+
+interface RawMeetingsListResponse {
+  meetings: RawMeetingResponse[];
 }
 
 const getActivityConfig = (type: ActivityType) => {
@@ -79,13 +81,13 @@ export const Dashboard: React.FC = () => {
       setError(null);
 
       try {
-        const response = await api.get<RawMeetingResponse[]>(`/meetings`, {
+        const response = await api.get<RawMeetingsListResponse>(`/meetings/my`, {
           signal,
         });
-        const data = response.data || [];
+        const items = response.data?.meetings || [];
 
-        const mapped: ActivityItem[] = data.meetings?.map((item, index) => ({
-          id: item.ID ?? `meeting-${index}`,
+        const mapped: ActivityItem[] = items.map((item, index) => ({
+          id: item.id ?? `meeting-${index}`,
           title: item.title || item.room_name || "Классная встреча",
           roomName: item.room_name || "Основная комната",
           time: item.created_at

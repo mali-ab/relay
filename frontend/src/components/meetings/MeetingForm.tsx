@@ -1,13 +1,11 @@
 import { useState } from "react";
 import {
-  VideoCameraIcon,
   ArrowPathIcon,
   SparklesIcon,
   ClockIcon,
   CalendarDaysIcon,
   UserGroupIcon,
   BoltIcon,
-  CheckIcon,
 } from "@heroicons/react/24/outline";
 import { Link } from "react-router-dom";
 
@@ -19,42 +17,30 @@ interface MeetingFormProps {
   isLoading?: boolean;
 }
 
-const DURATION_OPTIONS = [
-  { value: 15, label: "15 мин" },
-  { value: 30, label: "30 мин" },
-];
-
 export default function MeetingForm({
   onSubmit,
   isLoading = false,
 }: MeetingFormProps) {
   const { user } = useAuth();
   const [title, setTitle] = useState<string>("");
-  const [duration, setDuration] = useState<number>(30);
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduledDate, setScheduledDate] = useState<string>("");
   const [scheduledTime, setScheduledTime] = useState<string>("");
 
   const isPro = user?.subscription === "pro";
 
-  const getMinDateTime = () => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    return now.toISOString().slice(0, 16);
-  };
-
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!title.trim() || !user) return;
 
     const payload: CreateMeetingPayload = {
-      creator_id: Number(user.id),
+      creator_id: Number(user!.id),
       title: title.trim(),
-      duration_minutes: isPro ? undefined : duration,
     };
 
     if (isScheduled && scheduledDate && scheduledTime) {
-      payload.scheduled_at = `${scheduledDate}T${scheduledTime}:00`;
+      payload.scheduled_at = new Date(
+        `${scheduledDate}T${scheduledTime}`
+      ).toISOString();
     }
 
     onSubmit(payload);
@@ -64,27 +50,19 @@ export default function MeetingForm({
     <div className="flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md bg-white rounded-3xl p-8 shadow-xl border border-gray-100">
         <div className="flex flex-col items-center text-center mb-8">
-          <img className="h-18" src="/logo.svg" />
+          <img className="h-18" src="/logo.svg" alt="Logo" />
           <h1 className="text-3xl font-bold text-gray-900">Создать встречу</h1>
           <p className="text-gray-500 mt-2 text-sm">
             Создайте новую онлайн-встречу за несколько секунд
           </p>
         </div>
 
-        <div
-          className={`mb-6 rounded-2xl border overflow-hidden ${
-            isPro
-              ? "border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50/80"
-              : "border-slate-200 bg-gradient-to-br from-slate-50 to-gray-50"
-          }`}
-        >
-          <div
-            className={`h-1.5 w-full ${
-              isPro
-                ? "bg-gradient-to-r from-blue-500 to-indigo-500"
-                : "bg-gradient-to-r from-slate-300 to-slate-400"
-            }`}
-          />
+        <div className="bg-gradient-to-b from-blue-50/50 to-transparent rounded-2xl border border-blue-100/50 overflow-hidden mb-6">
+          <div className="bg-blue-600/5 px-4 py-2 border-b border-blue-100/30">
+            <span className="text-xs font-semibold text-blue-700 tracking-wide">
+              ТАРИФ
+            </span>
+          </div>
 
           <div className="p-4">
             <div className="flex items-center justify-between mb-3">
@@ -98,11 +76,7 @@ export default function MeetingForm({
                     <BoltIcon className="w-4 h-4 text-slate-600" />
                   </div>
                 )}
-                <span
-                  className={`text-sm font-bold ${
-                    isPro ? "text-blue-700" : "text-slate-700"
-                  }`}
-                >
+                <span className="text-sm font-semibold text-gray-800">
                   {isPro ? "Pro-тариф" : "Бесплатный тариф"}
                 </span>
               </div>
@@ -167,9 +141,7 @@ export default function MeetingForm({
                 <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
-                      isPro
-                        ? "bg-gradient-to-r from-blue-500 to-indigo-500 w-full"
-                        : "bg-gradient-to-r from-amber-400 to-orange-400 w-1/6"
+                      isPro ? "w-full bg-blue-500" : "w-1/6 bg-slate-400"
                     }`}
                   />
                 </div>
@@ -197,41 +169,6 @@ export default function MeetingForm({
               className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-gray-900 placeholder-gray-400 outline-none transition focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:opacity-60"
             />
           </div>
-
-          {!isPro && (
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                <div className="flex items-center gap-1.5">
-                  <ClockIcon className="w-4 h-4 text-gray-400" />
-                  <span>Длительность встречи</span>
-                </div>
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {DURATION_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setDuration(opt.value)}
-                    disabled={isLoading}
-                    className={`flex items-center justify-center gap-2 rounded-2xl border-2 px-4 py-3 text-sm font-semibold transition-all ${
-                      duration === opt.value
-                        ? "border-blue-500 bg-blue-50 text-blue-700 ring-4 ring-blue-100"
-                        : "border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300 hover:bg-gray-100"
-                    } disabled:opacity-50`}
-                  >
-                    {duration === opt.value && (
-                      <CheckIcon className="w-4 h-4 stroke-[3]" />
-                    )}
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-              <p className="mt-1.5 text-[11px] text-amber-600 flex items-center gap-1">
-                <BoltIcon className="w-3.5 h-3.5" />
-                Бесплатный тариф: макс. 30 минут на встречу
-              </p>
-            </div>
-          )}
 
           {isPro && (
             <div>
@@ -267,17 +204,17 @@ export default function MeetingForm({
               </label>
               <button
                 type="button"
-                onClick={() => setIsScheduled(!isScheduled)}
                 disabled={isLoading}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-4 focus:ring-blue-100 ${
-                  isScheduled ? "bg-blue-600" : "bg-gray-200"
+                className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
+                  isScheduled ? "bg-blue-600" : "bg-gray-300"
                 }`}
                 role="switch"
                 aria-checked={isScheduled}
+                onClick={() => setIsScheduled(!isScheduled)}
               >
                 <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform ${
-                    isScheduled ? "translate-x-5" : "translate-x-0"
+                  className={`block w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+                    isScheduled ? "translate-x-6" : "translate-x-1"
                   }`}
                 />
               </button>
@@ -323,7 +260,6 @@ export default function MeetingForm({
 
           <button
             type="submit"
-            disabled={isLoading || !title.trim()}
             className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98] transition text-white py-3.5 rounded-2xl font-semibold shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (
@@ -340,4 +276,3 @@ export default function MeetingForm({
     </div>
   );
 }
-
