@@ -7,5 +7,5 @@ type Subscription struct {
 	UserID    int64
 	PlanID    int64
 	StartedAt time.Time
-	ExpiresAt *time.Time
+	ExpiresAt time.Time
 }

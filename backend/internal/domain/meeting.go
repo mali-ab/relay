@@ -9,8 +9,7 @@ type Meeting struct {
 	RoomName               string
 	CreatorID              int64
 	MaxParticipants        int
-	MeetingDurationMinutes *int
+	MeetingDurationMinutes int
 	CreatedAt              time.Time
-	EndedAt                *time.Time
+	EndedAt                  *time.Time
 }
-

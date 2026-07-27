@@ -1,3 +1,4 @@
+-- database: :memory:
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL,
@@ -16,12 +17,20 @@ CREATE TABLE meetings (
 
     max_participants INT NOT NULL,
 
-    meeting_duration_minutes INT,
+    meeting_duration_minutes INT NOT NULL DEFAULT 0,
 
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    ended_at TIMESTAMP
+    ended_at TIMESTAMPTZ
 );
+
+CREATE TABLE meeting_participants (
+    meeting_id BIGINT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+    PRIMARY KEY (meeting_id, user_id)
+);
+
 CREATE TABLE plans (
     id BIGSERIAL PRIMARY KEY,
 
@@ -31,7 +40,7 @@ CREATE TABLE plans (
 
     max_participants INT NOT NULL,
 
-    meeting_duration_minutes INT,
+    meeting_duration_minutes INT NOT NULL,
 
     price INT NOT NULL DEFAULT 0
 );
@@ -44,28 +53,28 @@ INSERT INTO plans (
 )
 VALUES
 (
-    'FREE',
+    'free',
     'Free',
     5,
     30,
     0
 ),
 (
-    'PRO',
+    'pro',
     'Pro',
     30,
-    NULL,
-   10
+    0,
+    10
 );
 
 CREATE TABLE subscriptions (
     id BIGSERIAL PRIMARY KEY,
 
-    user_id BIGINT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
     plan_id BIGINT NOT NULL REFERENCES plans(id),
 
-    started_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    expires_at TIMESTAMP
+    expires_at TIMESTAMPTZ NOT NULL
 );

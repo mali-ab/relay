@@ -2,13 +2,14 @@ package myHttp
 
 import (
 	"net/http"
+	"teachflow/internal/middleware"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
-func NewRouter(handler *Handler) *gin.Engine {
+func NewRouter(handler *Handler, tokenParser middleware.TokenVerifier) *gin.Engine {
 	router := gin.Default()
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},
@@ -20,14 +21,23 @@ func NewRouter(handler *Handler) *gin.Engine {
 	}))
 
 	router.GET("/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
-	router.POST("/api/auth/register", handler.Register)
-	router.POST("/api/auth/login", handler.Login)
 
-	meetings := router.Group("/api/meetings")
-	meetings.Use(handler.AuthRequired())
-	meetings.POST("", handler.CreateMeeting)
-	meetings.GET("", handler.ListMeetings)
+	api := router.Group("/api")
+
+	api.POST("/register", handler.Register)
+	api.POST("/login", handler.Login)
+
+	api.Use(middleware.AuthRequired(tokenParser))
+	api.GET("/me", handler.Profile)
+	api.GET("/plans", handler.Plans)
+	api.POST("/subs/:plan", handler.CreateSubscription)
+
+	meetings := api.Group("/meetings")
+	meetings.POST("/create", handler.CreateMeeting)
+	meetings.POST("/end/:roomName", handler.EndMeeting)
+	meetings.GET("/my", handler.ListMeetings)
 	meetings.GET("/join/:roomName", handler.JoinMeeting)
+	meetings.GET("/:roomName/status", handler.MeetingStatus)
 
 	return router
 }

@@ -21,14 +21,20 @@ func Run() error {
 	}
 	defer db.Close()
 
-	users := repository.NewUserRepository(db)
-	meetings := repository.NewMeetingRepository(db)
+	usersRepo := repository.NewUserRepository(db)
+	meetingsRepo := repository.NewMeetingRepository(db)
+	participantsRepo := repository.NewMeetingParticipantsRepository(db)
+	subscriptionRepo := repository.NewSubscriptionRepository(db)
+
 	tokens := security.NewJWTService(cfg.JWTSecret)
-	authUseCase := usecase.NewAuthUseCase(users, security.PasswordService{}, tokens)
-	meetingUseCase := usecase.NewMeetingUseCase(meetings)
-	handler := myHttp.NewHandler(authUseCase, meetingUseCase, tokens, cfg.JitsiURL)
+
+	userUsecase := usecase.NewUserUseCase(usersRepo, subscriptionRepo, security.PasswordService{}, tokens)
+	meetingUsecase := usecase.NewMeetingUsecase(meetingsRepo, participantsRepo, subscriptionRepo)
+	subsUsecase := usecase.NewSubscriptionUsecase(subscriptionRepo)
+
+	handler := myHttp.NewHandler(userUsecase, meetingUsecase, subsUsecase, cfg.JitsiURL)
 
 	addr := fmt.Sprintf("%s:%s", cfg.ServerHost, cfg.ServerPort)
 	log.Printf("server started on %s", addr)
-	return myHttp.NewRouter(handler).Run(addr)
+	return myHttp.NewRouter(handler, tokens).Run(addr)
 }
