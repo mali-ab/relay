@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../lib/axios";
 import axios from "axios";
@@ -18,6 +18,14 @@ interface Participant {
   isVideoOff: boolean;
   isAudioMuted: boolean;
   isScreenSharing: boolean;
+}
+
+interface ChatMessage {
+  id: number;
+  sender: string;
+  text: string;
+  time: string;
+  isSelf?: boolean;
 }
 
 export default function MeetingRoom() {
@@ -40,13 +48,27 @@ export default function MeetingRoom() {
     isVideoOff: jitsiVideoOff,
     isScreenSharing: jitsiScreenSharing,
     containerRef,
-    chatMessages: jitsiChatMessages,
-    sendChatMessage,
   } = useJitsiRoom();
 
   const [activeSidePanel, setActiveSidePanel] = useState<
     "chat" | "participants" | null
   >(null);
+
+  // Local chat state (decoupled from Jitsi)
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const messageIdCounter = useRef(0);
+
+  const sendChatMessage = useCallback((text: string) => {
+    const id = ++messageIdCounter.current;
+    const time = new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    setChatMessages((prev) => [
+      ...prev,
+      { id, sender: "You", text, time, isSelf: true },
+    ]);
+  }, []);
   const [roomName, setRoomName] = useState<string>(
     id ? decodeURIComponent(id) : "Комната Relay",
   );
@@ -54,7 +76,7 @@ export default function MeetingRoom() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [durationSeconds, setDurationSeconds] = useState(0);
-  const [jitsiJoined, setJitsiJoined] = useState(false);
+  const joinAttemptedRef = useRef(false);
 
   const displayName = useMemo(() => user?.name || "Вы", [user]);
 
@@ -80,10 +102,12 @@ export default function MeetingRoom() {
         const response = await api.get(`/meetings/join/${roomId}`);
         if (!isActive) return;
 
-        if (response.data?.room?.join_url)
-          setJoinUrl(response.data.room.join_url);
+        if (response.data?.join_url)
+          setJoinUrl(response.data.join_url);
         if (response.data?.meeting?.room_name)
           setRoomName(response.data.meeting.room_name);
+        else if (response.data?.server_url)
+          setJoinUrl(response.data.server_url + "/" + roomId);
       } catch (err: unknown) {
         if (!isActive) return;
 
@@ -113,10 +137,9 @@ export default function MeetingRoom() {
   }, [id, leaveConference]);
 
   useEffect(() => {
-    if (!joinUrl || jitsiJoined) return;
-    setJitsiJoined(true);
+    if (!joinUrl || isConnected) return;
     joinConference({ roomName, displayName, url: joinUrl });
-  }, [joinUrl, jitsiJoined, roomName, displayName, joinConference]);
+  }, [joinUrl, isConnected, roomName, displayName, joinConference]);
 
   // Poll meeting status periodically. If the meeting has ended (410), leave immediately.
   useEffect(() => {
@@ -135,7 +158,7 @@ export default function MeetingRoom() {
     
     const interval = window.setInterval(checkStatus, 5000);
     return () => window.clearInterval(interval);
-  }, [jitsiJoined, roomName, leaveConference, navigate]);
+  }, [roomName, leaveConference, navigate]);
 
   useEffect(() => {
     if (kickedOut) {
@@ -209,7 +232,7 @@ export default function MeetingRoom() {
         <div className="absolute top-0 right-0 h-full z-30 p-4">
           {activeSidePanel === "chat" && (
             <ChatSidebar
-              messages={jitsiChatMessages}
+              messages={chatMessages}
               onSendMessage={sendChatMessage}
               onClose={() => setActiveSidePanel(null)}
             />

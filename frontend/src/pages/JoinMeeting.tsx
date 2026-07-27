@@ -61,7 +61,7 @@ export default function JoinMeeting() {
       const response = await api.get<MeetingResponse>(
         `/meetings/join/${cleanId}`,
       );
-      const roomName = response.data.room.room_name;
+      const roomName = response.data.meeting?.room_name || cleanId;
       navigate(`/meeting/${encodeURIComponent(roomName)}`);
     } catch (err) {
       const axiosError = err as AxiosError<ApiErrorResponse>;
