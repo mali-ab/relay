@@ -20,14 +20,6 @@ interface Participant {
   isScreenSharing: boolean;
 }
 
-interface ChatMessage {
-  id: number;
-  sender: string;
-  text: string;
-  time: string;
-  isSelf?: boolean;
-}
-
 export default function MeetingRoom() {
   const { id } = useParams<{ id?: string }>();
   const navigate = useNavigate();
@@ -48,27 +40,13 @@ export default function MeetingRoom() {
     isVideoOff: jitsiVideoOff,
     isScreenSharing: jitsiScreenSharing,
     containerRef,
+    chatMessages,
+    sendChatMessage,
   } = useJitsiRoom();
 
   const [activeSidePanel, setActiveSidePanel] = useState<
     "chat" | "participants" | null
   >(null);
-
-  // Local chat state (decoupled from Jitsi)
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const messageIdCounter = useRef(0);
-
-  const sendChatMessage = useCallback((text: string) => {
-    const id = ++messageIdCounter.current;
-    const time = new Date().toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-    setChatMessages((prev) => [
-      ...prev,
-      { id, sender: "You", text, time, isSelf: true },
-    ]);
-  }, []);
   const [roomName, setRoomName] = useState<string>(
     id ? decodeURIComponent(id) : "Комната Relay",
   );
@@ -102,8 +80,7 @@ export default function MeetingRoom() {
         const response = await api.get(`/meetings/join/${roomId}`);
         if (!isActive) return;
 
-        if (response.data?.join_url)
-          setJoinUrl(response.data.join_url);
+        if (response.data?.join_url) setJoinUrl(response.data.join_url);
         if (response.data?.meeting?.room_name)
           setRoomName(response.data.meeting.room_name);
         else if (response.data?.server_url)
@@ -148,14 +125,17 @@ export default function MeetingRoom() {
         await api.get(`/meetings/${encodeURIComponent(roomName)}/status`);
       } catch (err) {
         if (axios.isAxiosError(err) && err.response?.status === 410) {
-          await api.post(`/meetings/end/${encodeURIComponent(roomName)}`);
-          setError("Встреча была завершена организатором.");
-          leaveConference();
-          setTimeout(() => navigate("/", { replace: true }), 3000);
+          try {
+            await api.post(`/meetings/end/${encodeURIComponent(roomName)}`);
+          } finally {
+            setError("Встреча была завершена организатором.");
+            leaveConference();
+            setTimeout(() => navigate("/", { replace: true }), 3000);
+          }
         }
       }
     };
-    
+
     const interval = window.setInterval(checkStatus, 5000);
     return () => window.clearInterval(interval);
   }, [roomName, leaveConference, navigate]);
