@@ -20,11 +20,13 @@ export interface MeResponse {
 }
 
 export interface LoginResponse {
+  plan?: SubscriptionInfo;
   token: string;
   user: UserInfo;
 }
 
 export interface RegisterResponse {
+  plan?: SubscriptionInfo;
   token: string;
   user: UserInfo;
 }

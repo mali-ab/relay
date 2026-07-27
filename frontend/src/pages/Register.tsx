@@ -15,7 +15,7 @@ import AuthLayout from "../layouts/AuthLayout";
 import api from "../lib/axios";
 import type { ApiErrorResponse } from "../types/meeting";
 import type { RegisterResponse } from "../types/auth";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth, type SubscriptionTier } from "../contexts/AuthContext";
 
 export default function Register() {
   const { login } = useAuth();
@@ -52,12 +52,17 @@ export default function Register() {
       });
 
       if (response.data.token && response.data.user) {
+        const plan = response.data.plan;
+        const planCode = (plan?.plan_code ?? "").toLowerCase();
+        const tier: SubscriptionTier = planCode === "pro" ? "pro" : "free";
+
         login(
           {
             id: String(response.data.user.id),
             name: response.data.user.name,
             email: response.data.user.email,
-            subscription: "free" as const,
+            subscription: tier,
+            subs: plan,
           },
           response.data.token
         );
@@ -107,7 +112,7 @@ export default function Register() {
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Иван Петров"
+                placeholder="Myrat Myradow"
                 className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition duration-200"
               />
             </div>
@@ -124,7 +129,7 @@ export default function Register() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="teacher@relay.com"
+                placeholder="example@relay.com"
                 className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition duration-200"
               />
             </div>

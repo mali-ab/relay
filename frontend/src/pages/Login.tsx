@@ -43,12 +43,17 @@ export default function Login() {
       });
 
       if (response.data.token && response.data.user) {
+        const plan = response.data.plan;
+        const planCode = (plan?.plan_code ?? "").toLowerCase();
+        const tier: SubscriptionTier = planCode === "pro" ? "pro" : "free";
+
         login(
           {
             id: String(response.data.user.id),
             name: response.data.user.name,
             email: response.data.user.email,
-            subscription: "free" as const,
+            subscription: tier,
+            subs: plan,
           },
           response.data.token
         );
@@ -97,7 +102,7 @@ export default function Login() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="teacher@relay.com"
+                placeholder="example@relay.com"
                 className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition duration-200"
               />
             </div>
@@ -108,12 +113,12 @@ export default function Login() {
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
                 Пароль
               </label>
-              <Link
+              {/* <Link
                 to="/forgot-password"
                 className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
               >
                 Забыли?
-              </Link>
+              </Link> */}
             </div>
             <div className="relative flex items-center">
               <LockClosedIcon className="w-5 h-5 absolute left-4 text-slate-400 pointer-events-none" />
