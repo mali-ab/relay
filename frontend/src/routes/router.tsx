@@ -34,22 +34,22 @@ export const router = createBrowserRouter([
         index: true,
         element: <Dashboard />,
       },
-      {
-        path: "courses",
-        element: <Courses />,
-      },
-      {
-        path: "calendar",
-        element: <Calendar />,
-      },
-      {
-        path: "live",
-        element: <LiveClasses />,
-      },
-      {
-        path: "assignments",
-        element: <Assignments />,
-      },
+      // {
+      //   path: "courses",
+      //   element: <Courses />,
+      // },
+      // {
+      //   path: "calendar",
+      //   element: <Calendar />,
+      // },
+      // {
+      //   path: "live",
+      //   element: <LiveClasses />,
+      // },
+      // {
+      //   path: "assignments",
+      //   element: <Assignments />,
+      // },
       {
         path: "settings",
         element: <Settings />,

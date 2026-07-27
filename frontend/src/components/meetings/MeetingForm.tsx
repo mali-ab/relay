@@ -194,7 +194,7 @@ export default function MeetingForm({
             </div>
           )}
 
-          <div>
+          {/* <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-sm font-semibold text-gray-700">
                 <div className="flex items-center gap-1.5">
@@ -256,7 +256,7 @@ export default function MeetingForm({
                 </p>
               </div>
             )}
-          </div>
+          </div> */}
 
           <button
             type="submit"

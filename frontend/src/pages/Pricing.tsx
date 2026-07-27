@@ -5,6 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 import type { SubscriptionTier } from "../contexts/AuthContext";
 import api from "../lib/axios";
 import { getSubscription } from "../lib/subscription";
+import Loading from "./Loading";
 
 interface Plan {
   id: number;
@@ -25,27 +26,25 @@ interface PlanCardProps {
   currentPlan?: SubscriptionTier;
   isUpgrading: boolean;
   onUpgrade: (tier: SubscriptionTier) => void;
+  isProUserDowngradeBlocked?: boolean;
 }
 
 function getPlanFeatures(plan: Plan): string[] {
   const features: string[] = [];
 
-  // Duration feature
   if (plan.meeting_duration === 0) {
     features.push("Безлимитная длительность встреч");
   } else {
     features.push(`Максимум ${plan.meeting_duration} минут на встречу`);
   }
 
-  // Participants feature
   features.push(`До ${plan.max_participants} участников`);
 
-  // Plan-specific features
   if (plan.code === "free" || plan.code === "FREE") {
     features.push(
       "Базовое управление встречей",
       "Демонстрация экрана",
-      "Чат поддержка"
+      "Чат поддержка",
     );
   }
 
@@ -55,7 +54,7 @@ function getPlanFeatures(plan: Plan): string[] {
       "Демонстрация экрана и запись",
       "Приоритетная поддержка в чате",
       "Настраиваемые фоны",
-      "Аналитика встреч"
+      "Аналитика встреч",
     );
   }
 
@@ -79,9 +78,11 @@ function PlanCard({
   currentPlan,
   isUpgrading,
   onUpgrade,
+  isProUserDowngradeBlocked = false,
 }: PlanCardProps) {
   const isCurrentPlan = currentPlan === tier;
   const isFree = price === 0;
+  const isDowngradeButtonDisabled = isProUserDowngradeBlocked || isUpgrading;
 
   return (
     <div
@@ -108,7 +109,9 @@ function PlanCard({
           {isFree ? "0 TMT" : `${price} TMT`}
         </span>
         {!isFree && (
-          <span className="text-slate-400 text-sm font-medium ml-2">/месяц</span>
+          <span className="text-slate-400 text-sm font-medium ml-2">
+            /месяц
+          </span>
         )}
       </div>
 
@@ -132,24 +135,33 @@ function PlanCard({
           Текущий план ✨
         </div>
       ) : (
-        <button
-          onClick={() => onUpgrade(tier)}
-          disabled={isUpgrading}
-          className={`w-full py-3.5 rounded-2xl font-semibold transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 ${
-            isPro
-              ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40"
-              : "bg-slate-900 text-white hover:bg-slate-800"
-          }`}
-        >
-          {isUpgrading ? (
-            <span className="inline-flex items-center gap-2">
-              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              Обновление...
-            </span>
-          ) : (
-            tier === "free" ? "Понизить" : "Перейти на Pro"
+        <div className="space-y-2">
+          <button
+            onClick={() => onUpgrade(tier)}
+            disabled={isDowngradeButtonDisabled}
+            className={`w-full py-3.5 rounded-2xl font-semibold transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 ${
+              isPro
+                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40"
+                : "bg-slate-900 text-white hover:bg-slate-800"
+            } ${isProUserDowngradeBlocked ? "opacity-50 cursor-not-allowed" : ""}`}
+          >
+            {isUpgrading ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Обновление...
+              </span>
+            ) : tier === "free" ? (
+              "Понизить"
+            ) : (
+              "Перейти на Pro"
+            )}
+          </button>
+          {isProUserDowngradeBlocked && (
+            <p className="text-xs text-center text-amber-600 font-medium">
+              Pro пользователи не могут перейти на бесплатный тариф
+            </p>
           )}
-        </button>
+        </div>
       )}
     </div>
   );
@@ -193,14 +205,7 @@ export default function Pricing() {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-500 text-sm">Загрузка тарифов...</p>
-        </div>
-      </div>
-    );
+    return <Loading />;
   }
 
   if (error) {
@@ -219,6 +224,8 @@ export default function Pricing() {
     );
   }
 
+  const isProUser = currentPlan === "pro";
+
   return (
     <div className="min-h-screen bg-slate-50">
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -230,15 +237,19 @@ export default function Pricing() {
             </span>
           </h1>
           <p className="mt-4 text-lg text-slate-500 max-w-2xl mx-auto">
-            Начните с бесплатного плана и переходите на более продвинутый по мере роста. Без скрытых платежей и необходимости вводить данные карты.
+            Начните с бесплатного плана и переходите на более продвинутый по
+            мере роста. Без скрытых платежей и необходимости вводить данные
+            карты.
           </p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto items-start">
           {plans.map((plan) => {
             const code = plan.code.toLowerCase();
-            const tier = code === "pro" ? "pro" : "free" as SubscriptionTier;
+            const tier = code === "pro" ? "pro" : ("free" as SubscriptionTier);
             const isPro = code === "pro";
+            const isFreeCard = code === "free";
+            const isDowngradeBlocked = isFreeCard && isProUser;
 
             return (
               <PlanCard
@@ -252,6 +263,7 @@ export default function Pricing() {
                 currentPlan={currentPlan}
                 isUpgrading={isUpgrading}
                 onUpgrade={handleUpgrade}
+                isProUserDowngradeBlocked={isDowngradeBlocked}
               />
             );
           })}
@@ -276,4 +288,3 @@ export default function Pricing() {
     </div>
   );
 }
-

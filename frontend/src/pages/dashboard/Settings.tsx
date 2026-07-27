@@ -21,13 +21,13 @@ export default function Settings() {
       description: "Обновите личную информацию",
       component: <ProfileSection />,
     },
-    {
-      id: "notifications",
-      icon: Bell,
-      title: "Уведомления",
-      description: "Настройте предпочтения уведомлений",
-      component: <NotificationsSection />,
-    },
+    // {
+    //   id: "notifications",
+    //   icon: Bell,
+    //   title: "Уведомления",
+    //   description: "Настройте предпочтения уведомлений",
+    //   component: <NotificationsSection />,
+    // },
     {
       id: "security",
       icon: Shield,

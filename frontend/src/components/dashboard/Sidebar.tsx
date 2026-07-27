@@ -14,10 +14,10 @@ import { useAuth } from "../../contexts/AuthContext";
 
 const mainNavItems = [
   { name: "Главная", icon: LayoutDashboard, path: "/" },
-  { name: "Курсы", icon: BookOpen, path: "/courses" },
-  { name: "Календарь", icon: Calendar, path: "/calendar" },
-  { name: "Живые классы", icon: Video, path: "/live" },
-  { name: "Задания", icon: FileText, path: "/assignments" },
+  // { name: "Курсы", icon: BookOpen, path: "/courses" },
+  // { name: "Календарь", icon: Calendar, path: "/calendar" },
+  // { name: "Живые классы", icon: Video, path: "/live" },
+  // { name: "Задания", icon: FileText, path: "/assignments" },
 ];
 
 const secondaryNavItems = [

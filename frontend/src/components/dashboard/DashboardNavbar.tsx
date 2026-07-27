@@ -37,14 +37,14 @@ export default function DashboardNavbar({
             )}
           </button>
 
-          <div className="relative w-full max-w-xs hidden sm:block">
+          {/* <div className="relative w-full max-w-xs hidden sm:block">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
               placeholder="Поиск курсов, занятий..."
               className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-100/70 border border-transparent rounded-full focus:bg-white focus:border-blue-500 focus:outline-none transition-all placeholder:text-slate-400"
             />
-          </div>
+          </div> */}
         </div>
 
         <div className="flex items-center gap-3">
@@ -60,14 +60,14 @@ export default function DashboardNavbar({
             <span>{isPro ? "PRO" : "Улучшить"}</span>
           </Link>
 
-          <button
+          {/* <button
             type="button"
             className="relative p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-full transition"
             aria-label="Уведомления"
           >
             <Bell className="w-4 h-4" />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-blue-600 ring-2 ring-white" />
-          </button>
+          </button> */}
         </div>
       </div>
     </header>
