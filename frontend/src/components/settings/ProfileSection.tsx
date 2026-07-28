@@ -7,9 +7,11 @@ import {
   Camera,
   CheckCircle,
   Loader2,
+  XCircle,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import InputField from "./InputField";
+import api from "../../lib/axios";
 
 interface FormErrors {
   name?: string;
@@ -17,13 +19,14 @@ interface FormErrors {
 }
 
 export default function ProfileSection() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
 
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -43,19 +46,25 @@ export default function ProfileSection() {
     if (Object.keys(newErrors).length > 0) return;
 
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
+    setApiError(null);
 
-    if (user) {
-      const updatedUser = { ...user, name: name.trim(), email: email.trim() };
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-      window.dispatchEvent(
-        new CustomEvent("user-updated", { detail: updatedUser })
-      );
+    try {
+      await api.put("/me/name", { name: name.trim() });
+
+      if (user) {
+        updateUser({ name: name.trim() });
+      }
+
+      setSaving(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: unknown) {
+      setSaving(false);
+      const message =
+        (err as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error || "Ошибка при сохранении";
+      setApiError(message);
     }
-
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
   };
 
   return (
@@ -111,10 +120,14 @@ export default function ProfileSection() {
           />
         </div>
 
+        {apiError && (
+          <div className="flex items-center gap-2 px-4 py-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-sm font-medium">
+            <XCircle className="w-4 h-4 shrink-0" />
+            {apiError}
+          </div>
+        )}
+
         <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-          <p className="text-xs text-slate-400">
-            Изменения сохраняются локально. Данные будут синхронизированы при подключении к серверу.
-          </p>
           <button
             type="button"
             onClick={handleSave}
@@ -143,4 +156,3 @@ export default function ProfileSection() {
     </motion.div>
   );
 }
-

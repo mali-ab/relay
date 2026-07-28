@@ -1,70 +1,34 @@
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../lib/axios";
 import axios from "axios";
 import { useAuth } from "../contexts/AuthContext";
 import { useJitsiRoom } from "../contexts/JitsiRoomContext";
 
-import MeetingHeader from "../components/meetings/MeetingHeader";
-import MeetingControls from "../components/meetings/MeetingControls";
-import ChatSidebar from "../components/meetings/ChatSidebar";
-import ParticipantsSidebar from "../components/meetings/ParticipantsSidebar";
-
-interface Participant {
-  id: number | string;
-  name: string;
-  isSelf?: boolean;
-  isSpeaking?: boolean;
-  isVideoOff: boolean;
-  isAudioMuted: boolean;
-  isScreenSharing: boolean;
-}
-
 export default function MeetingRoom() {
   const { id } = useParams<{ id?: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const endMeetingCalledRef = useRef(false);
 
   const {
-    participants: jitsiParticipants,
-    localParticipantId,
     isConnected,
     conferenceError,
     kickedOut,
     joinConference,
     leaveConference,
-    toggleAudio,
-    toggleVideo,
-    toggleScreenShare,
-    isAudioMuted: jitsiAudioMuted,
-    isVideoOff: jitsiVideoOff,
-    isScreenSharing: jitsiScreenSharing,
     containerRef,
-    chatMessages,
-    sendChatMessage,
+    setOnLeaveConference,
   } = useJitsiRoom();
 
-  const [activeSidePanel, setActiveSidePanel] = useState<
-    "chat" | "participants" | null
-  >(null);
   const [roomName, setRoomName] = useState<string>(
     id ? decodeURIComponent(id) : "Комната Relay",
   );
   const [joinUrl, setJoinUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [durationSeconds, setDurationSeconds] = useState(0);
-  const joinAttemptedRef = useRef(false);
 
   const displayName = useMemo(() => user?.name || "Вы", [user]);
-
-  useEffect(() => {
-    const timer = window.setInterval(
-      () => setDurationSeconds((prev) => prev + 1),
-      1000,
-    );
-    return () => window.clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     const roomId = id ? decodeURIComponent(id) : "";
@@ -118,6 +82,24 @@ export default function MeetingRoom() {
     joinConference({ roomName, displayName, url: joinUrl });
   }, [joinUrl, isConnected, roomName, displayName, joinConference]);
 
+  // Register callback for when user clicks Jitsi's native hangup button
+  useEffect(() => {
+    setOnLeaveConference(() => {
+      // Prevent double-call
+      if (endMeetingCalledRef.current) return;
+      endMeetingCalledRef.current = true;
+
+      api
+        .post(`/meetings/end/${encodeURIComponent(roomName)}`)
+        .catch((err) => console.error("Failed to end meeting:", err))
+        .finally(() => {
+          navigate("/", { replace: true });
+        });
+    });
+
+    return () => setOnLeaveConference(null);
+  }, [roomName, navigate, setOnLeaveConference]);
+
   // Poll meeting status periodically. If the meeting has ended (410), leave immediately.
   useEffect(() => {
     const checkStatus = async () => {
@@ -146,48 +128,14 @@ export default function MeetingRoom() {
     }
   }, [kickedOut, navigate]);
 
-  const currentParticipants = useMemo<Participant[]>(() => {
-    return jitsiParticipants.map((jp) => ({
-      id: jp.id,
-      name:
-        jp.displayName ||
-        (jp.id === localParticipantId ? displayName : "Гость"),
-      isSelf: jp.id === localParticipantId,
-      isSpeaking: false,
-      isVideoOff: jp.isVideoOff,
-      isAudioMuted: jp.isAudioMuted,
-      isScreenSharing: jp.isScreenSharing,
-    }));
-  }, [jitsiParticipants, localParticipantId, displayName]);
-
   return (
-    <div className="h-screen w-screen bg-[#020617] text-slate-100 flex flex-col overflow-hidden select-none">
-      <MeetingHeader
-        roomName={roomName}
-        duration={(() => {
-          const m = Math.floor((durationSeconds % 3600) / 60);
-          const s = durationSeconds % 60;
-          return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-        })()}
-        participantCount={currentParticipants.length}
-        role="Участник"
-        isSpeaking={!jitsiAudioMuted}
-      />
-
-      <div className="flex-1 flex overflow-hidden relative">
+    <div className="h-screen w-screen bg-[#020617] overflow-hidden">
+      <div className="relative w-full h-full">
         <div
           ref={containerRef}
           id="jitsi-meet-container"
           className="absolute inset-0 w-full h-full"
         />
-
-        <div className="absolute top-4 left-6 z-10 pointer-events-none flex items-center gap-2">
-          <img
-            src="/logo.svg"
-            alt="Relay Logo"
-            className="h-20 w-auto object-contain drop-shadow-md"
-          />
-        </div>
 
         {error && (
           <div className="absolute top-4 left-4 right-4 z-30 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
@@ -208,46 +156,8 @@ export default function MeetingRoom() {
             </div>
           </div>
         )}
-
-        <div className="absolute top-0 right-0 h-full z-30 p-4">
-          {activeSidePanel === "chat" && (
-            <ChatSidebar
-              messages={chatMessages}
-              onSendMessage={sendChatMessage}
-              onClose={() => setActiveSidePanel(null)}
-            />
-          )}
-
-          {activeSidePanel === "participants" && (
-            <ParticipantsSidebar
-              participants={currentParticipants as any}
-              onClose={() => setActiveSidePanel(null)}
-            />
-          )}
-        </div>
       </div>
-
-      <MeetingControls
-        isAudioMuted={jitsiAudioMuted}
-        setIsAudioMuted={toggleAudio}
-        isVideoOff={jitsiVideoOff}
-        setIsVideoOff={toggleVideo}
-        isScreenSharing={jitsiScreenSharing}
-        setIsScreenSharing={toggleScreenShare}
-        activeSidePanel={activeSidePanel}
-        toggleSidePanel={(panel) =>
-          setActiveSidePanel((prev) => (prev === panel ? null : panel))
-        }
-        onLeave={async () => {
-          try {
-            await api.post(`/meetings/end/${encodeURIComponent(roomName)}`);
-          } catch (err) {
-            console.error("Failed to end meeting:", err);
-          }
-          leaveConference();
-          navigate("/");
-        }}
-      />
     </div>
   );
 }
+

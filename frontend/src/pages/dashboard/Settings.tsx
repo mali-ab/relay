@@ -64,11 +64,6 @@ export default function Settings() {
           </div>
         ))}
       </div>
-
-      {/* Footer */}
-      <p className="mt-6 text-center text-xs text-slate-400">
-        Ваши данные хранятся локально и будут синхронизированы при подключении к серверу.
-      </p>
     </div>
   );
 }

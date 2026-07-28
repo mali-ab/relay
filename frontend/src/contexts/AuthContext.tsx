@@ -27,6 +27,7 @@ type AuthContextValue = {
   login: (user: AuthUser, token: string) => void;
   logout: () => void;
   updateSubscription: (tier: SubscriptionTier) => void;
+  updateUser: (updates: Partial<AuthUser>) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -99,6 +100,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateUser = (updates: Partial<AuthUser>) => {
+    if (user) {
+      const updatedUser: AuthUser = { ...user, ...updates };
+      setUser(updatedUser);
+      window.localStorage.setItem("user", JSON.stringify(updatedUser));
+    }
+  };
+
   const value: AuthContextValue = useMemo(() => {
     return {
       user,
@@ -118,6 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         window.localStorage.removeItem("user");
       },
       updateSubscription,
+      updateUser,
     };
   }, [user, token, isLoading]);
 

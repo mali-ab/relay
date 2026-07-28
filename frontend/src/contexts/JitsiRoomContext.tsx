@@ -16,14 +16,6 @@ export interface JitsiParticipant {
   isScreenSharing: boolean;
 }
 
-export interface ChatMessage {
-  id: number;
-  sender: string;
-  text: string;
-  time: string;
-  isSelf?: boolean;
-}
-
 type JitsiContextValue = {
   participants: JitsiParticipant[];
   localParticipantId: string | null;
@@ -44,8 +36,7 @@ type JitsiContextValue = {
   isVideoOff: boolean;
   isScreenSharing: boolean;
   containerRef: React.RefObject<HTMLDivElement | null>;
-  chatMessages: ChatMessage[];
-  sendChatMessage: (text: string) => void;
+  setOnLeaveConference: (cb: (() => void) | null) => void;
 };
 
 const JitsiRoomContext = createContext<JitsiContextValue | undefined>(
@@ -100,6 +91,7 @@ export const JitsiRoomProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const apiRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const onLeaveCallbackRef = useRef<(() => void) | null>(null);
 
   const [isConnected, setIsConnected] = useState(false);
   const [conferenceError, setConferenceError] = useState<string | null>(null);
@@ -113,23 +105,8 @@ export const JitsiRoomProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [kickedOut, setKickedOut] = useState(false);
 
-  // Jitsi chat messages — synced via Jitsi data channel, displayed in own UI
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const messageIdCounter = useRef(0);
-
-  const sendChatMessage = useCallback((text: string) => {
-    if (!apiRef.current) return;
-    // Send via Jitsi data channel so other participants receive it
-    apiRef.current.executeCommand("sendChatMessage", text);
-    const id = ++messageIdCounter.current;
-    const time = new Date().toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-    setChatMessages((prev) => [
-      ...prev,
-      { id, sender: "You", text, time, isSelf: true },
-    ]);
+  const setOnLeaveConference = useCallback((cb: (() => void) | null) => {
+    onLeaveCallbackRef.current = cb;
   }, []);
 
   const updateParticipant = useCallback(
@@ -140,6 +117,17 @@ export const JitsiRoomProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     [],
   );
+
+  const resetAllState = useCallback(() => {
+    setIsConnected(false);
+    setConferenceError(null);
+    setParticipants([]);
+    setLocalParticipantId(null);
+    setIsAudioMuted(false);
+    setIsVideoOff(false);
+    setIsScreenSharing(false);
+    setKickedOut(false);
+  }, []);
 
   const leaveConference = useCallback(() => {
     const api = apiRef.current;
@@ -154,20 +142,15 @@ export const JitsiRoomProvider: React.FC<{ children: React.ReactNode }> = ({
       api.dispose();
       apiRef.current = null;
 
-      setIsConnected(false);
-      setConferenceError(null);
-      setParticipants([]);
-      setLocalParticipantId(null);
-      setIsAudioMuted(false);
-      setIsVideoOff(false);
-      setIsScreenSharing(false);
-      setKickedOut(false);
-      setChatMessages([]);
-      messageIdCounter.current = 0;
+      resetAllState();
+
+      // Call the leave callback if set (e.g., to POST /meetings/end)
+      onLeaveCallbackRef.current?.();
+      onLeaveCallbackRef.current = null;
     };
 
     api.addListener("videoConferenceLeft", handleLeft);
-  }, []);
+  }, [resetAllState]);
 
   const joinConference = useCallback(
     async ({
@@ -188,8 +171,6 @@ export const JitsiRoomProvider: React.FC<{ children: React.ReactNode }> = ({
       setIsConnected(false);
       setParticipants([]);
       setKickedOut(false);
-      setChatMessages([]);
-      messageIdCounter.current = 0;
 
       try {
         const parsed = new URL(url);
@@ -213,21 +194,13 @@ export const JitsiRoomProvider: React.FC<{ children: React.ReactNode }> = ({
             },
             startWithAudioMuted: false,
             startWithVideoMuted: false,
-            toolbarButtons: [],
-            disableRemoteMute: true,
-            disableShortcuts: true,
           },
           interfaceConfigOverwrite: {
             SHOW_JITSI_WATERMARK: false,
             SHOW_WATERMARK_FOR_GUESTS: false,
             SHOW_BRAND_WATERMARK: false,
             SHOW_POWERED_BY: false,
-            SHOW_TOOLBAR: false,
-            TOOLBAR_ALWAYS_VISIBLE: false,
-            DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
-            FILM_STRIP_MAX_HEIGHT: 0,
             MOBILE_APP_PROMO: false,
-            DISABLE_FOCUS_INDICATOR: true,
           },
         });
 
@@ -311,25 +284,6 @@ export const JitsiRoomProvider: React.FC<{ children: React.ReactNode }> = ({
           updateParticipant(tid, { isScreenSharing: payload.on });
         });
 
-        // Listen for incoming Jitsi chat messages — show in our own ChatSidebar UI
-        api.addEventListener("incomingMessage", (payload: any) => {
-          const id = ++messageIdCounter.current;
-          const time = new Date().toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-          setChatMessages((prev) => [
-            ...prev,
-            {
-              id,
-              sender: payload?.nick || "Participant",
-              text: payload?.message || "",
-              time,
-              isSelf: false,
-            },
-          ]);
-        });
-
         api.addEventListener("participantKickedOut", () => {
           const kickedApi = apiRef.current;
           if (kickedApi) {
@@ -340,15 +294,7 @@ export const JitsiRoomProvider: React.FC<{ children: React.ReactNode }> = ({
             }
             apiRef.current = null;
           }
-          setIsConnected(false);
-          setConferenceError(null);
-          setParticipants([]);
-          setLocalParticipantId(null);
-          setIsAudioMuted(false);
-          setIsVideoOff(false);
-          setIsScreenSharing(false);
-          setChatMessages([]);
-          messageIdCounter.current = 0;
+          resetAllState();
           setKickedOut(true);
         });
 
@@ -362,20 +308,18 @@ export const JitsiRoomProvider: React.FC<{ children: React.ReactNode }> = ({
             }
             apiRef.current = null;
           }
-          setIsConnected(false);
-          setParticipants([]);
-          setLocalParticipantId(null);
-          setIsAudioMuted(false);
-          setIsVideoOff(false);
-          setIsScreenSharing(false);
-          setChatMessages([]);
-          messageIdCounter.current = 0;
+          resetAllState();
+
+          // Call the leave callback if set (e.g., to POST /meetings/end)
+          // This handles when user clicks Jitsi's native hangup button
+          onLeaveCallbackRef.current?.();
+          onLeaveCallbackRef.current = null;
         });
       } catch (e: any) {
         setConferenceError(e?.message || "Failed to initialize Jitsi.");
       }
     },
-    [updateParticipant],
+    [updateParticipant, resetAllState],
   );
 
   const toggleAudio = useCallback(
@@ -416,8 +360,7 @@ export const JitsiRoomProvider: React.FC<{ children: React.ReactNode }> = ({
       isVideoOff,
       isScreenSharing,
       containerRef,
-      chatMessages,
-      sendChatMessage,
+      setOnLeaveConference,
     }),
     [
       participants,
@@ -428,13 +371,12 @@ export const JitsiRoomProvider: React.FC<{ children: React.ReactNode }> = ({
       isAudioMuted,
       isVideoOff,
       isScreenSharing,
-      chatMessages,
-      sendChatMessage,
       leaveConference,
       toggleAudio,
       toggleVideo,
       toggleScreenShare,
       pinParticipant,
+      setOnLeaveConference,
     ],
   );
 
@@ -444,4 +386,3 @@ export const JitsiRoomProvider: React.FC<{ children: React.ReactNode }> = ({
     </JitsiRoomContext.Provider>
   );
 };
-

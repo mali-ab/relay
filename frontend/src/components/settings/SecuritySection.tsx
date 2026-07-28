@@ -13,8 +13,12 @@ import {
   Trash2,
 } from "lucide-react";
 import InputField from "./InputField";
+import api from "../../lib/axios";
+import { useAuth } from "../../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 export default function SecuritySection() {
+  const { logout } = useAuth();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -24,6 +28,12 @@ export default function SecuritySection() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [saving, setSaving] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   const handleChangePassword = async () => {
     setError(null);
@@ -47,14 +57,26 @@ export default function SecuritySection() {
     }
 
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setSaving(false);
 
-    setSuccess(true);
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    setTimeout(() => setSuccess(false), 4000);
+    try {
+      await api.put("/me/password", {
+        old_password: currentPassword,
+        new_password: newPassword,
+      });
+
+      setSaving(false);
+      setSuccess(true);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => setSuccess(false), 4000);
+    } catch (err: unknown) {
+      setSaving(false);
+      const message =
+        (err as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error || "Ошибка при смене пароля";
+      setError(message);
+    }
   };
 
   const renderPasswordToggle = (show: boolean, toggle: () => void) => (
@@ -106,7 +128,9 @@ export default function SecuritySection() {
                 placeholder="Введите текущий пароль"
                 icon={Lock}
               />
-              {renderPasswordToggle(showCurrentPw, () => setShowCurrentPw(!showCurrentPw))}
+              {renderPasswordToggle(showCurrentPw, () =>
+                setShowCurrentPw(!showCurrentPw),
+              )}
             </div>
             <div className="relative">
               <InputField
@@ -128,7 +152,9 @@ export default function SecuritySection() {
                 placeholder="Повторите новый пароль"
                 icon={Lock}
               />
-              {renderPasswordToggle(showConfirmPw, () => setShowConfirmPw(!showConfirmPw))}
+              {renderPasswordToggle(showConfirmPw, () =>
+                setShowConfirmPw(!showConfirmPw),
+              )}
             </div>
 
             {newPassword && (
@@ -142,8 +168,8 @@ export default function SecuritySection() {
                           ? newPassword.length >= 8
                             ? "bg-emerald-500"
                             : newPassword.length >= 6
-                            ? "bg-amber-500"
-                            : "bg-rose-500"
+                              ? "bg-amber-500"
+                              : "bg-rose-500"
                           : "bg-slate-200"
                       }`}
                     />
@@ -153,8 +179,8 @@ export default function SecuritySection() {
                   {newPassword.length < 6
                     ? "Слабый — слишком короткий"
                     : newPassword.length < 8
-                    ? "Средний — добавьте больше символов"
-                    : "Надёжный пароль"}
+                      ? "Средний — добавьте больше символов"
+                      : "Надёжный пароль"}
                 </p>
               </div>
             )}
@@ -189,30 +215,21 @@ export default function SecuritySection() {
           </div>
           <div className="space-y-3">
             <button
-              type="button"
+              onClick={handleLogout}
               className="w-full flex items-center justify-between p-4 bg-rose-50/50 border border-rose-100 rounded-xl hover:bg-rose-50 transition group"
             >
               <div className="flex items-center gap-3">
                 <LogOut className="w-4 h-4 text-rose-500" />
                 <div className="text-left">
                   <p className="text-sm font-medium text-slate-800">Выйти</p>
-                  <p className="text-xs text-slate-400">Выйти из аккаунта на этом устройстве</p>
+                  <p className="text-xs text-slate-400">
+                    Выйти из аккаунта на этом устройстве
+                  </p>
                 </div>
               </div>
-              <span className="text-xs font-semibold text-rose-600 group-hover:underline">Выйти</span>
-            </button>
-            <button
-              type="button"
-              className="w-full flex items-center justify-between p-4 bg-rose-50/50 border border-rose-100 rounded-xl hover:bg-rose-50 transition group"
-            >
-              <div className="flex items-center gap-3">
-                <Trash2 className="w-4 h-4 text-rose-500" />
-                <div className="text-left">
-                  <p className="text-sm font-medium text-slate-800">Удалить аккаунт</p>
-                  <p className="text-xs text-slate-400">Навсегда удалить аккаунт и все данные</p>
-                </div>
-              </div>
-              <span className="text-xs font-semibold text-rose-600 group-hover:underline">Удалить</span>
+              <span className="text-xs font-semibold text-rose-600 group-hover:underline">
+                Выйти
+              </span>
             </button>
           </div>
         </div>
@@ -220,4 +237,3 @@ export default function SecuritySection() {
     </motion.div>
   );
 }
-
