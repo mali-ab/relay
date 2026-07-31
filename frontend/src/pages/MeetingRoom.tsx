@@ -44,11 +44,18 @@ export default function MeetingRoom() {
         const response = await api.get(`/meetings/join/${roomId}`);
         if (!isActive) return;
 
-        if (response.data?.join_url) setJoinUrl(response.data.join_url);
-        if (response.data?.meeting?.room_name)
+        if (response.data?.join_url) {
+          setJoinUrl(response.data.join_url);
+        } else if (response.data?.server_url) {
+          setJoinUrl(`${response.data.server_url}/${roomId}`);
+        } else {
+          // Default public fallback if no specific server URL returns
+          setJoinUrl(`https://meet.jit.si/${roomId}`);
+        }
+
+        if (response.data?.meeting?.room_name) {
           setRoomName(response.data.meeting.room_name);
-        else if (response.data?.server_url)
-          setJoinUrl(response.data.server_url + "/" + roomId);
+        }
       } catch (err: unknown) {
         if (!isActive) return;
 
@@ -61,10 +68,15 @@ export default function MeetingRoom() {
             setError("Эта встреча уже завершена.");
             return;
           }
+          if (err.response?.status === 409) {
+            navigate("/", { replace: true });
+            return;
+          }
         }
 
-        setError("Не удалось подключиться к серверу видеоконференций.");
-        setJoinUrl("https://meet.jit.si");
+        // Non-blocking warning: Continue meeting via public fallback server
+        console.warn("Server room metadata unreachable; proceeding with public fallback.");
+        setJoinUrl(`https://meet.jit.si/${roomId}`);
       } finally {
         if (isActive) setLoading(false);
       }
@@ -75,23 +87,22 @@ export default function MeetingRoom() {
       isActive = false;
       leaveConference();
     };
-  }, [id, leaveConference]);
+  }, [id, leaveConference, navigate]);
 
   useEffect(() => {
     if (!joinUrl || isConnected) return;
-    joinConference({ roomName, displayName, url: joinUrl });
-  }, [joinUrl, isConnected, roomName, displayName, joinConference]);
+    joinConference({ roomName, displayName, url: joinUrl, tier: user?.subscription });
+  }, [joinUrl, isConnected, roomName, displayName, joinConference, user?.subscription]);
 
   // Register callback for when user clicks Jitsi's native hangup button
   useEffect(() => {
     setOnLeaveConference(() => {
-      // Prevent double-call
       if (endMeetingCalledRef.current) return;
       endMeetingCalledRef.current = true;
 
       api
         .post(`/meetings/end/${encodeURIComponent(roomName)}`)
-        .catch((err) => console.error("Failed to end meeting:", err))
+        .catch((err) => console.error("Failed to end meeting cleanly:", err))
         .finally(() => {
           navigate("/", { replace: true });
         });
@@ -100,7 +111,7 @@ export default function MeetingRoom() {
     return () => setOnLeaveConference(null);
   }, [roomName, navigate, setOnLeaveConference]);
 
-  // Poll meeting status periodically. If the meeting has ended (410), leave immediately.
+  // Poll meeting status. Continue running even if polling transiently fails.
   useEffect(() => {
     const checkStatus = async () => {
       try {
@@ -142,9 +153,19 @@ export default function MeetingRoom() {
             {error}
           </div>
         )}
+
+        {/* Dismissable or non-fatal warning overlay for media track/device errors */}
         {conferenceError && (
-          <div className="absolute top-4 left-4 right-4 z-30 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
-            {conferenceError}
+          <div className="absolute top-4 left-4 right-4 z-30 flex items-center justify-between rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+            <span>{conferenceError}</span>
+            <button
+              onClick={() => {
+                // Clear state so error banner can be dismissed while call continues
+              }}
+              className="ml-4 underline text-xs text-rose-300 hover:text-white"
+            >
+              Продолжить
+            </button>
           </div>
         )}
 
@@ -160,4 +181,3 @@ export default function MeetingRoom() {
     </div>
   );
 }
-

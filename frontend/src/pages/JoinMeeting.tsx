@@ -73,8 +73,8 @@ export default function JoinMeeting() {
 
       setError(serverMessage);
 
-      // If meeting is not found (404) or has ended (410), don't navigate to the room
-      if (status === 404 || status === 410) {
+      // If meeting is not found (404) or has ended (410) or is full (409), don't navigate to the room
+      if (status === 404 || status === 410 || status === 409) {
         return;
       }
 

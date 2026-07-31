@@ -26,6 +26,7 @@ type JitsiContextValue = {
     roomName: string;
     displayName: string;
     url: string;
+    tier?: "free" | "pro";
   }) => void;
   leaveConference: () => void;
   toggleAudio: () => void;
@@ -157,10 +158,12 @@ export const JitsiRoomProvider: React.FC<{ children: React.ReactNode }> = ({
       roomName,
       displayName,
       url,
+      tier = "free",
     }: {
       roomName: string;
       displayName: string;
       url: string;
+      tier?: "free" | "pro";
     }) => {
       if (!containerRef.current) {
         setConferenceError("DOM element container reference is not ready.");
@@ -180,6 +183,8 @@ export const JitsiRoomProvider: React.FC<{ children: React.ReactNode }> = ({
         if (!JitsiMeetExternalAPI)
           throw new Error("Jitsi external API not available.");
 
+        const isFree = tier === "free";
+
         const api = new JitsiMeetExternalAPI(parsed.host, {
           roomName,
           parentNode: containerRef.current,
@@ -194,6 +199,20 @@ export const JitsiRoomProvider: React.FC<{ children: React.ReactNode }> = ({
             },
             startWithAudioMuted: false,
             startWithVideoMuted: false,
+
+            overrideAudioOutputDevice: "",
+            testing: {
+              failICE: false,
+            },
+            enableAudioProcessing: true,
+            ...(isFree && {
+              toolbarButtons: [
+                "microphone",
+                "camera",
+                "desktop",
+                "hangup",
+              ],
+            }),
           },
           interfaceConfigOverwrite: {
             SHOW_JITSI_WATERMARK: false,
@@ -201,6 +220,11 @@ export const JitsiRoomProvider: React.FC<{ children: React.ReactNode }> = ({
             SHOW_BRAND_WATERMARK: false,
             SHOW_POWERED_BY: false,
             MOBILE_APP_PROMO: false,
+            HIDE_SETTING_AUDIO_OUTPUT: false,
+            ...(isFree && {
+              DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
+              FILM_STRIP_MAX_HEIGHT: 0,
+            }),
           },
         });
 
