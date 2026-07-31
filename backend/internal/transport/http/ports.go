@@ -7,9 +7,10 @@ import (
 
 type UserUsecaseStore interface {
 	Profile(context.Context, int64) (*usecase.UserDTO, *usecase.UserPlanDTO, error)
-	// CheckSubscription(ctx context.Context, userID int64) (*usecase.UserPlanDTO, error)
 	Register(context.Context, usecase.RegisterDTO) (*usecase.AuthResult, error)
 	Login(context.Context, usecase.LoginDTO) (*usecase.AuthResult, error)
+	UpdateName(context.Context, int64, string) (*usecase.UserDTO, error)
+	UpdatePassword(context.Context, int64, string, string) error
 }
 
 type MeetingUsecaseStore interface {

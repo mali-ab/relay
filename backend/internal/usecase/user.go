@@ -2,7 +2,7 @@ package usecase
 
 import (
 	"context"
-	"errors"
+	"log"
 	"strings"
 	"teachflow/internal/domain"
 )
@@ -39,9 +39,6 @@ func (u *UserUseCase) Profile(ctx context.Context, userID int64) (*UserDTO, *Use
 
 	userPlan, err := u.subscription.GetUserPlan(ctx, userID)
 	if err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			return userDTO, &UserPlanDTO{}, nil
-		}
 		return nil, nil, err
 	}
 
@@ -69,6 +66,7 @@ func (u *UserUseCase) Register(ctx context.Context, newUser RegisterDTO) (*AuthR
 	}
 	user := &domain.User{Name: newUser.Name, Email: newUser.Email, PasswordHash: hash}
 	if err := u.users.Create(ctx, user); err != nil {
+		log.Println(err)
 		return nil, err
 	}
 
@@ -78,7 +76,7 @@ func (u *UserUseCase) Register(ctx context.Context, newUser RegisterDTO) (*AuthR
 		Email: user.Email,
 	}
 
-	return u.resultFor(userDTO)
+	return u.resultFor(ctx, userDTO)
 }
 
 func (u *UserUseCase) Login(ctx context.Context, userLogin LoginDTO) (*AuthResult, error) {
@@ -93,13 +91,64 @@ func (u *UserUseCase) Login(ctx context.Context, userLogin LoginDTO) (*AuthResul
 		Email: user.Email,
 	}
 
-	return u.resultFor(userDTO)
+	return u.resultFor(ctx, userDTO)
 }
 
-func (u *UserUseCase) resultFor(user *UserDTO) (*AuthResult, error) {
+func (u *UserUseCase) UpdateName(ctx context.Context, userID int64, name string) (*UserDTO, error) {
+	name = strings.TrimSpace(name)
+	if name == "" || len(name) > 120 {
+		return nil, domain.ErrValidation
+	}
+
+	if err := u.users.UpdateName(ctx, userID, name); err != nil {
+		return nil, err
+	}
+
+	return &UserDTO{ID: userID, Name: name}, nil
+}
+
+func (u *UserUseCase) UpdatePassword(ctx context.Context, userID int64, oldPassword, newPassword string) error {
+	if len(oldPassword) < 8 || len(newPassword) < 8 {
+		return domain.ErrValidation
+	}
+
+	user, err := u.users.GetUser(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	if err := u.passwords.Compare(oldPassword, user.PasswordHash); err != nil {
+		return domain.ErrInvalidCredentials
+	}
+
+	hash, err := u.passwords.Hash(newPassword)
+	if err != nil {
+		return err
+	}
+
+	return u.users.UpdatePassword(ctx, userID, hash)
+}
+
+func (u *UserUseCase) resultFor(ctx context.Context, user *UserDTO) (*AuthResult, error) {
 	token, err := u.tokens.Issue(user.ID)
 	if err != nil {
 		return nil, err
 	}
-	return &AuthResult{Token: token, User: *user}, nil
+
+	userPlan, err := u.subscription.GetUserPlan(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	planDTO := &UserPlanDTO{
+		UserID:                 userPlan.UserID,
+		PlanCode:               userPlan.PlanCode,
+		PlanName:               userPlan.PlanName,
+		MaxParticipants:        userPlan.MaxParticipants,
+		MeetingDurationMinutes: userPlan.MeetingDurationMinutes,
+		StartedAt:              userPlan.StartedAt,
+		ExpiresAt:              userPlan.ExpiresAt,
+	}
+
+	return &AuthResult{Token: token, User: *user, Plan: planDTO}, nil
 }

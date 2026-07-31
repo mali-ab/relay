@@ -37,4 +37,5 @@ func Run() error {
 	addr := fmt.Sprintf("%s:%s", cfg.ServerHost, cfg.ServerPort)
 	log.Printf("server started on %s", addr)
 	return myHttp.NewRouter(handler, tokens).Run(addr)
+
 }

@@ -9,6 +9,8 @@ type UserRepoStore interface {
 	GetUser(context.Context, int64) (*domain.User, error)
 	Create(context.Context, *domain.User) error
 	GetByEmail(context.Context, string) (*domain.User, error)
+	UpdateName(context.Context, int64, string) error
+	UpdatePassword(context.Context, int64, string) error
 }
 
 // type MeetingRepoStore interface {

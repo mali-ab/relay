@@ -29,6 +29,8 @@ func NewRouter(handler *Handler, tokenParser middleware.TokenVerifier) *gin.Engi
 
 	api.Use(middleware.AuthRequired(tokenParser))
 	api.GET("/me", handler.Profile)
+	api.PUT("/me/name", handler.UpdateName)
+	api.PUT("/me/password", handler.UpdatePassword)
 	api.GET("/plans", handler.Plans)
 	api.POST("/subs/:plan", handler.CreateSubscription)
 

@@ -43,9 +43,9 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*domain.
 }
 
 func (r *UserRepository) GetUser(ctx context.Context, id int64) (*domain.User, error) {
-	const query = `SELECT id, name, email FROM users WHERE id = $1`
+	const query = `SELECT id, name, email, password_hash FROM users WHERE id = $1`
 	user := new(domain.User)
-	err := r.db.QueryRowContext(ctx, query, id).Scan(&user.ID, &user.Name, &user.Email)
+	err := r.db.QueryRowContext(ctx, query, id).Scan(&user.ID, &user.Name, &user.Email, &user.PasswordHash)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, domain.ErrNotFound
 	}
@@ -53,4 +53,36 @@ func (r *UserRepository) GetUser(ctx context.Context, id int64) (*domain.User, e
 		return nil, err
 	}
 	return user, nil
+}
+
+func (r *UserRepository) UpdateName(ctx context.Context, id int64, name string) error {
+	const query = `UPDATE users SET name = $1 WHERE id = $2`
+	result, err := r.db.ExecContext(ctx, query, name, id)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+func (r *UserRepository) UpdatePassword(ctx context.Context, id int64, passwordHash string) error {
+	const query = `UPDATE users SET password_hash = $1 WHERE id = $2`
+	result, err := r.db.ExecContext(ctx, query, passwordHash, id)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
 }

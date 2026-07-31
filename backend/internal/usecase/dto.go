@@ -66,12 +66,12 @@ type MeetingStatusDTO struct {
 	ParticipantCount int        `json:"participant_count"`
 	MaxParticipants  int        `json:"max_participants"`
 	EndedAt          *time.Time `json:"ended_at,omitempty"`
-	// RemainingMinutes *int       `json:"remaining_minutes,omitempty"`
 }
 
 type AuthResult struct {
 	Token string
 	User  UserDTO
+	Plan  *UserPlanDTO
 }
 
 type RegisterDTO struct {

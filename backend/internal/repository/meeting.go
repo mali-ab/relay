@@ -96,3 +96,4 @@ func (r *MeetingRepository) ListByCreator(ctx context.Context, creatorID int64) 
 	}
 	return meetings, rows.Err()
 }
+ 

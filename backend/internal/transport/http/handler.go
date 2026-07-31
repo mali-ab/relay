@@ -52,6 +52,48 @@ func (h *Handler) Profile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"user": userResp, "subs": planResp})
 }
 
+func (h *Handler) UpdateName(c *gin.Context) {
+	var request struct {
+		Name string `json:"name"`
+	}
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	userDTO, err := h.user.UpdateName(c.Request.Context(), currentUserID(c), request.Name)
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+
+	userResp := UserResponse{
+		ID:    userDTO.ID,
+		Name:  userDTO.Name,
+		Email: userDTO.Email,
+	}
+
+	c.JSON(http.StatusOK, gin.H{"user": userResp})
+}
+
+func (h *Handler) UpdatePassword(c *gin.Context) {
+	var request struct {
+		OldPassword string `json:"old_password"`
+		NewPassword string `json:"new_password"`
+	}
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	if err := h.user.UpdatePassword(c.Request.Context(), currentUserID(c), request.OldPassword, request.NewPassword); err != nil {
+		h.writeError(c, err)
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
 func (h *Handler) CreateSubscription(c *gin.Context) {
 	err := h.subscription.CreateSubscription(c.Request.Context(), currentUserID(c), c.Param("plan"))
 	if err != nil {
@@ -113,7 +155,17 @@ func (h *Handler) Register(c *gin.Context) {
 		Email: result.User.Email,
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"token": result.Token, "user": userResponse})
+	planResp := UserPlanResponse{
+		UserID:                 result.Plan.UserID,
+		PlanCode:               result.Plan.PlanCode,
+		PlanName:               result.Plan.PlanName,
+		MaxParticipants:        result.Plan.MaxParticipants,
+		MeetingDurationMinutes: result.Plan.MeetingDurationMinutes,
+		StartedAt:              result.Plan.StartedAt,
+		ExpiresAt:              result.Plan.ExpiresAt,
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"token": result.Token, "user": userResponse, "plan": planResp})
 }
 
 func (h *Handler) Login(c *gin.Context) {
@@ -142,7 +194,17 @@ func (h *Handler) Login(c *gin.Context) {
 		Email: result.User.Email,
 	}
 
-	c.JSON(http.StatusOK, gin.H{"token": result.Token, "user": userResponse})
+	planResp := UserPlanResponse{
+		UserID:                 result.Plan.UserID,
+		PlanCode:               result.Plan.PlanCode,
+		PlanName:               result.Plan.PlanName,
+		MaxParticipants:        result.Plan.MaxParticipants,
+		MeetingDurationMinutes: result.Plan.MeetingDurationMinutes,
+		StartedAt:              result.Plan.StartedAt,
+		ExpiresAt:              result.Plan.ExpiresAt,
+	}
+
+	c.JSON(http.StatusOK, gin.H{"token": result.Token, "user": userResponse, "plan": planResp})
 }
 
 func (h *Handler) CreateMeeting(c *gin.Context) {
@@ -187,9 +249,6 @@ func (h *Handler) EndMeeting(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
-// MeetingStatus проверяет, может ли пользователь присоединиться к встрече.
-// Если встреча завершена или истекла — возвращает 410 Gone с ошибкой.
-// Если встреча активна — возвращает 200 OK с короткой информацией.
 func (h *Handler) MeetingStatus(c *gin.Context) {
 	status, err := h.meetings.MeetingStatus(c.Request.Context(), c.Param("roomName"))
 	if err != nil {
@@ -271,21 +330,23 @@ func (h *Handler) meetingResponse(meeting *MeetingResponse) gin.H {
 func (h *Handler) writeError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, domain.ErrValidation):
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid input"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	case errors.Is(err, domain.ErrEmailExists):
-		c.JSON(http.StatusConflict, gin.H{"error": "email already exists"})
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 	case errors.Is(err, domain.ErrInvalidCredentials):
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid email or password"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 	case errors.Is(err, domain.ErrNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 	case errors.Is(err, domain.ErrAlreadyOnMeeting):
-		c.JSON(http.StatusForbidden, gin.H{"error": "you are already on meeting"})
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 	case errors.Is(err, domain.ErrForbidden):
-		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+	case errors.Is(err, domain.ErrPlanDowngrade):
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	case errors.Is(err, domain.ErrMeetingFull):
-		c.JSON(http.StatusConflict, gin.H{"error": "room is full"})
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 	case errors.Is(err, domain.ErrMeetingEnded):
-		c.JSON(http.StatusGone, gin.H{"error": "meeting ended"})
+		c.JSON(http.StatusGone, gin.H{"error": err.Error()})
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 	}

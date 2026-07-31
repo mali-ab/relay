@@ -16,6 +16,15 @@ func NewSubscriptionRepository(db *sql.DB) *SubscriptionRepository {
 	return &SubscriptionRepository{db: db}
 }
 
+func (r *SubscriptionRepository) UserHasActiveSubscription(ctx context.Context, userID int64) (bool, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM subscriptions WHERE user_id = $1`, userID).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func (r *SubscriptionRepository) CreateSubscription(ctx context.Context, userID int64, planCode string) error {
 	const getPlanID = `SELECT id FROM plans WHERE code = $1`
 
