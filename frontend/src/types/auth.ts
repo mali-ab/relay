@@ -26,8 +26,29 @@ export interface LoginResponse {
 }
 
 export interface RegisterResponse {
-  plan?: SubscriptionInfo;
-  token: string;
+  reg_token: string;
+}
+
+export interface VerifyResponse {
   user: UserInfo;
+  token: string;
+}
+
+export interface SendCodeRequest {
+  email?: string;
+}
+
+export interface VerifyRequest {
+  code: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  code: string;
+  new_password: string;
 }
 

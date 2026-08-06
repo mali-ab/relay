@@ -15,7 +15,7 @@ import AuthLayout from "../layouts/AuthLayout";
 import api from "../lib/axios";
 import type { ApiErrorResponse } from "../types/meeting";
 import type { RegisterResponse } from "../types/auth";
-import { useAuth, type SubscriptionTier } from "../contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function Register() {
   const { login } = useAuth();
@@ -51,22 +51,19 @@ export default function Register() {
         password,
       });
 
-      if (response.data.token && response.data.user) {
-        const plan = response.data.plan;
-        const planCode = (plan?.plan_code ?? "").toLowerCase();
-        const tier: SubscriptionTier = planCode === "pro" ? "pro" : "free";
-
+      if (response.data.reg_token) {
         login(
           {
-            id: String(response.data.user.id),
-            name: response.data.user.name,
-            email: response.data.user.email,
-            subscription: tier,
-            subs: plan,
+            id: "temp-id",
+            name: name,
+            email: email,
+            is_email_verified: false,
+            subscription: "free",
           },
-          response.data.token
+          response.data.reg_token,
         );
-        navigate("/");
+
+        navigate("/verify-email", { replace: true });
       } else {
         navigate("/login");
       }

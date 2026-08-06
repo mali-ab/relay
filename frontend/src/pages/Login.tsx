@@ -54,6 +54,7 @@ export default function Login() {
             email: response.data.user.email,
             subscription: tier,
             subs: plan,
+            is_email_verified: true,
           },
           response.data.token
         );
@@ -109,17 +110,9 @@ export default function Login() {
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                Пароль
-              </label>
-              {/* <Link
-                to="/forgot-password"
-                className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
-              >
-                Забыли?
-              </Link> */}
-            </div>
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+              Пароль
+            </label>
             <div className="relative flex items-center">
               <LockClosedIcon className="w-5 h-5 absolute left-4 text-slate-400 pointer-events-none" />
               <input

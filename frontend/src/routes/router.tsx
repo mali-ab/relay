@@ -16,6 +16,7 @@ import Login from "../pages/Login";
 import MeetingRoom from "../pages/MeetingRoom";
 import Pricing from "../pages/Pricing";
 import Register from "../pages/Register";
+import VerifyEmail from "../pages/VerifyEmail";
 import ProtectedRoute from "../components/ProtectedRoute";
 import PublicRoute from "../components/PublicRoute";
 import { JitsiRoomProvider } from "../contexts/JitsiRoomContext";
@@ -34,22 +35,6 @@ export const router = createBrowserRouter([
         index: true,
         element: <Dashboard />,
       },
-      // {
-      //   path: "courses",
-      //   element: <Courses />,
-      // },
-      // {
-      //   path: "calendar",
-      //   element: <Calendar />,
-      // },
-      // {
-      //   path: "live",
-      //   element: <LiveClasses />,
-      // },
-      // {
-      //   path: "assignments",
-      //   element: <Assignments />,
-      // },
       {
         path: "settings",
         element: <Settings />,
@@ -82,6 +67,14 @@ export const router = createBrowserRouter([
       <PublicRoute>
         <Register />
       </PublicRoute>
+    ),
+  },
+  {
+    path: "/verify-email",
+    element: (
+      <ProtectedRoute>
+        <VerifyEmail />
+      </ProtectedRoute>
     ),
   },
   {

@@ -15,6 +15,7 @@ export type AuthUser = {
   id: number | string;
   name: string;
   email: string;
+  is_email_verified: boolean;
   subscription: SubscriptionTier;
   subs?: SubscriptionInfo;
 };
@@ -33,23 +34,44 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const TOKEN_KEY = "token";
+const USER_KEY = "user";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(() => {
+  const [user, _setUser] = useState<AuthUser | null>(() => {
     try {
-      const raw = window.localStorage.getItem("user");
-      return raw ? JSON.parse(raw) as AuthUser : null;
+      const raw = window.localStorage.getItem(USER_KEY);
+      return raw ? (JSON.parse(raw) as AuthUser) : null;
     } catch {
       return null;
     }
   });
-  const [token, setToken] = useState<string | null>(() => {
+
+  const setUser = (newUser: AuthUser | null) => {
+    _setUser(newUser);
+    if (newUser) {
+      window.localStorage.setItem(USER_KEY, JSON.stringify(newUser));
+    }else{
+      window.localStorage.removeItem(USER_KEY);
+    }
+  };
+
+  const [token, _setToken] = useState<string | null>(() => {
     try {
       return window.localStorage.getItem(TOKEN_KEY) || null;
     } catch {
       return null;
     }
   });
+  
+  const setToken = (newToken: string | null) => {
+    _setToken(newToken);
+    if (newToken) {
+      window.localStorage.setItem(TOKEN_KEY, newToken);
+    } else {
+      window.localStorage.removeItem(TOKEN_KEY);
+    }
+  };
+
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -62,7 +84,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setToken(storedToken);
 
-    api
+    if (!user || user?.is_email_verified) {
+      api
       .get<MeResponse>("/me")
       .then((response) => {
         const data = response.data;
@@ -72,31 +95,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id: String(data.user.id ?? ""),
           name: data.user.name ?? "",
           email: data.user.email ?? "",
+          is_email_verified: data.user ? true : false,
           subscription: tier,
           subs: data.subs,
         };
         setUser(freshUser);
-        window.localStorage.setItem("user", JSON.stringify(freshUser));
       })
       .catch((error) => {
-        if (error?.response?.status === 401) {
+        if (
+          error?.response?.status === 401
+        ) {
           setUser(null);
           setToken(null);
-          window.localStorage.removeItem(TOKEN_KEY);
-          window.localStorage.removeItem("user");
         }
-        
       })
       .finally(() => {
         setIsLoading(false);
       });
+    } else {
+      setIsLoading(false);
+    }
   }, []);
 
   const updateSubscription = (tier: SubscriptionTier) => {
     if (user) {
       const updatedUser: AuthUser = { ...user, subscription: tier };
       setUser(updatedUser);
-      window.localStorage.setItem("user", JSON.stringify(updatedUser));
+      window.localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
     }
   };
 
@@ -104,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) {
       const updatedUser: AuthUser = { ...user, ...updates };
       setUser(updatedUser);
-      window.localStorage.setItem("user", JSON.stringify(updatedUser));
+      window.localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
     }
   };
 
@@ -117,14 +142,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login: (u, t) => {
         setUser(u);
         setToken(t);
-        window.localStorage.setItem(TOKEN_KEY, t);
-        window.localStorage.setItem("user", JSON.stringify(u));
       },
       logout: () => {
         setUser(null);
         setToken(null);
-        window.localStorage.removeItem(TOKEN_KEY);
-        window.localStorage.removeItem("user");
       },
       updateSubscription,
       updateUser,
@@ -141,4 +162,3 @@ export function useAuth() {
   }
   return ctx;
 }
-

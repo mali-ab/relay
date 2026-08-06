@@ -7,12 +7,21 @@ export default function PublicRoute({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return (
-      <Loading message="Загрузка..." fullScreen={true} />
-    );
+    return <Loading message="Загрузка..." fullScreen={true} />;
+  }
+
+  if (user?.is_email_verified === false) {
+    if (window.location.pathname !== "/verify-email") {
+      return <Navigate to="/verify-email" replace />;
+    }
+    return <>{children}</>;
+  } else {
+    if (window.location.pathname === "/verify-email") {
+      return <Navigate to="/" replace />;
+    }
   }
 
   if (isAuthenticated) {
@@ -21,4 +30,3 @@ export default function PublicRoute({
 
   return <>{children}</>;
 }
-
