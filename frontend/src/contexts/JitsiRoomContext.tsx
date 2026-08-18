@@ -210,6 +210,8 @@ export const JitsiRoomProvider: React.FC<{ children: React.ReactNode }> = ({
                 "microphone",
                 "camera",
                 "desktop",
+                "sharelink",
+                "invite",
                 "hangup",
               ],
             }),

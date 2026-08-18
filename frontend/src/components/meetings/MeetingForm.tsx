@@ -106,7 +106,7 @@ export default function MeetingForm({
                     <>
                       <span className="text-slate-400 line-through text-[11px]">30 мин</span>
                       <span className="font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-md text-[11px]">
-                        Безлимитно
+                        300 мин
                       </span>
                     </>
                   ) : (
@@ -140,9 +140,8 @@ export default function MeetingForm({
                 </div>
                 <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      isPro ? "w-full bg-blue-500" : "w-1/6 bg-slate-400"
-                    }`}
+                    className={`h-full rounded-full transition-all duration-500 ${isPro ? "w-full bg-blue-500" : "w-1/6 bg-slate-400"
+                      }`}
                   />
                 </div>
               </div>
