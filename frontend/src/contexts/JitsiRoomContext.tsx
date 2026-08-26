@@ -310,7 +310,21 @@ export const JitsiRoomProvider: React.FC<{ children: React.ReactNode }> = ({
           updateParticipant(tid, { isScreenSharing: payload.on });
         });
 
-        api.addEventListener("participantKickedOut", () => {
+        api.addEventListener("participantKickedOut", (payload: any) => {
+          // This event fires on the kicker's client (and other participants')
+          // to notify that someone was removed. It must NOT dispose the local
+          // meeting or reset everyone's state, otherwise kicking one participant
+          // disconnects all clients. Only the kicked participant receives the
+          // `kickedOut` event, which is what disconnects them.
+          const kickedId = payload?.kicked?.id;
+          if (kickedId) {
+            setParticipants((prev) =>
+              prev.filter((p) => p.id !== kickedId),
+            );
+          }
+        });
+
+        api.addEventListener("kickedOut", () => {
           const kickedApi = apiRef.current;
           if (kickedApi) {
             try {
