@@ -138,6 +138,65 @@ npm run build
 
 Собранные файлы будут сохранены в директории `dist/`.
 
+### Установка и запуск через Docker
+
+Для production-сборки используется multi-stage Docker-образ: Node.js собирает
+приложение, после чего Nginx раздаёт содержимое `dist/`. Конфигурация
+[`nginx.conf`](./nginx.conf) поддерживает маршруты React Router — прямой переход
+на `/login`, `/settings` и другие страницы возвращает `index.html`.
+
+Требование: установленный Docker.
+
+```bash
+# 1. Перейдите в директорию фронтенда
+cd frontend
+
+# 2. Соберите образ (укажите публичный адрес API при необходимости)
+docker build -t relay-frontend .
+
+# Пример с API на другом домене:
+# docker build \
+#   --build-arg VITE_API_BASE_URL=https://api.example.com \
+#   --build-arg VITE_JITSI_DOMAIN=meet.jit.si \
+#   -t relay-frontend .
+
+# 3. Запустите контейнер
+docker run -d \
+  --name relay-frontend-app \
+  --restart unless-stopped \
+  -p 3001:80 \
+  relay-frontend
+```
+
+Приложение будет доступно по адресу **http://localhost:3001**.
+
+Переменные `VITE_API_BASE_URL` и `VITE_JITSI_DOMAIN` встраиваются в приложение
+во время сборки образа, поэтому для их изменения образ необходимо пересобрать.
+Если `VITE_API_BASE_URL` не задан, фронтенд отправляет запросы на `/api` того же
+домена; маршрутизацию этого пути к бэкенду должен обеспечить внешний reverse
+proxy.
+
+Проверить состояние и посмотреть логи контейнера:
+
+```bash
+docker ps --filter name=relay-frontend-app
+docker logs relay-frontend-app
+```
+
+Для повторного развёртывания также можно использовать готовый скрипт:
+
+```bash
+chmod +x deploy.sh
+./deploy.sh
+```
+
+Остановить и удалить контейнер:
+
+```bash
+docker stop relay-frontend-app
+docker rm relay-frontend-app
+```
+
 ---
 
 ## 🔧 Конфигурация
@@ -256,4 +315,3 @@ proxy: {
 ## 📄 Лицензия
 
 Проект распространяется под лицензией MIT.
-

@@ -26,6 +26,6 @@ docker build -t "${IMAGE_NAME}" .
 
 # 3. Run the new container
 echo "▶️  Starting new container on port ${PORT}..."
-docker run -d -p "${PORT}:${PORT}" --name "${CONTAINER_NAME}" "${IMAGE_NAME}"
+docker run -d -p "${PORT}:80" --name "${CONTAINER_NAME}" "${IMAGE_NAME}"
 
 echo "✅ Deployment successful! App is running at http://localhost:${PORT}"
